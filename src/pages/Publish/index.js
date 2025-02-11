@@ -20,6 +20,7 @@ import { getChannelAPI } from '@/apis/article'
 import { createArticleAPI } from '@/apis/article'
 import { useChannel } from '@/hooks/useChannel'
 import { getArticleByIdAPI } from '@/apis/article'
+import { updateArticleAPI } from '@/apis/article'
 const { Option } = Select
 
 const Publish = () => {
@@ -35,12 +36,26 @@ const Publish = () => {
       content,
       cover:{
       type:imageType,//上传的图片类型
-      images:imageList.map(item=>item.response.data.url)      //上传的图片列表
+      //这里url处理逻辑是在新增时候的逻辑
+      images:imageList.map(item=>{
+        if(item.response){
+          return item.response.data.url
+        }else{
+          return item.url
+        }
+      })      //上传的图片列表
+      //编辑的时候也需要再处理
       },
       channel_id
      }
      //调用接口提交
+     //处理调用不同的接口 新增-新增接口  编辑-更新接口
+     if(articleId){
+      //更新接口
+      updateArticleAPI({...reqData,id:articleId})
+     }else{
      createArticleAPI(reqData)
+     }
    }
  //上传回调
    const [imageList,setImageList]=useState([]) 
