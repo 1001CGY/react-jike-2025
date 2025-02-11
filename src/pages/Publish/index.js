@@ -7,43 +7,35 @@ import {
   Input,
   Upload,
   Space,
-  Select
+  Select,
+  message
 } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import './index.scss'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 import { useEffect, useState } from 'react'
 import { getChannelAPI } from '@/apis/article'
 import { createArticleAPI } from '@/apis/article'
+import { useChannel } from '@/hooks/useChannel'
+import { getArticleByIdAPI } from '@/apis/article'
 const { Option } = Select
 
 const Publish = () => {
-   //获取频道列表 
-   const [channelList,setchannelList]=useState([])
-   useEffect(()=>{
-    //1.封装函数 在函数体外调用接口
-    const getchannelList= async ()=>{
-     const res=await getChannelAPI()
-     console.log(res.data.channels);
-     
-     setchannelList(res.data.channels)
-    }
-    //2.调用函数
-    getchannelList()
-   },[])
-
+  const {channelList}=useChannel()
    const onFinish=(formValue)=>{
      console.log(formValue);
+     //校验封面类型imageType是否和实际的图片列表imageList数量是相等的
+     if(imageList.length!=imageType) return message.warning('封面类型和图片数量不匹配')
      const {title,content, channel_id}=formValue
      //按照接口文档处理收集到的表单数据
      const reqData={
       title,
       content,
       cover:{
-      type:0,
-      images:[]
+      type:imageType,//上传的图片类型
+      images:imageList.map(item=>item.response.data.url)      //上传的图片列表
       },
       channel_id
      }
@@ -54,9 +46,46 @@ const Publish = () => {
    const [imageList,setImageList]=useState([]) 
    const onChange=(value)=>{
     console.log(value);
-    
    setImageList(value.fileList)
    }
+
+     // 控制图片Type 切换图片封面类型
+  const [imageType, setImageType] = useState(0)
+  const onTypeChange = (e) => {
+    console.log(e)
+    setImageType(e.target.value)
+  }
+
+    //回填数据
+    const [searchParams]=useSearchParams()
+    const articleId=searchParams.get('id')
+    //获取实例
+    const [form]=Form.useForm()
+    useEffect(()=>{
+      //1.通过id获取数据
+       async function getArticleDetail(){
+         const res = await getArticleByIdAPI(articleId)
+         const data=res.data
+         const {cover}=data
+         console.log(res);
+         form.setFieldsValue({
+          ...res.data,
+          type:cover.type,
+         })
+         //回显图片列表
+         setImageType(cover.type)
+         //将图片显示出来
+         setImageList(cover.images.map(url=>{
+          return {url}
+         }))
+        }
+        //只有有Id的时候才能调用此函数回填
+        if(articleId){
+        getArticleDetail()
+        }
+      //2.调用实例方法 完成回填
+
+    },[articleId,form])
 
   return (
     <div className="publish">
@@ -64,7 +93,7 @@ const Publish = () => {
         title={
           <Breadcrumb items={[
             { title: <Link to={'/'}>首页</Link> },
-            { title: '发布文章' },
+            { title: `${articleId  ? '编辑文章' : '发布文章'}` },
           ]}
           />
         }
@@ -72,8 +101,9 @@ const Publish = () => {
         <Form
           labelCol={{ span: 4 }}
           wrapperCol={{ span: 16 }}
-          initialValues={{ type: 1 }}
+          initialValues={{ type: 0 }}
           onFinish={onFinish}
+          form={form}
         >
           <Form.Item
             label="标题"
@@ -99,7 +129,7 @@ const Publish = () => {
 
           <Form.Item label="封面">
             <Form.Item name="type">
-              <Radio.Group>
+              <Radio.Group onChange={onTypeChange}>
                 <Radio value={1}>单图</Radio>
                 <Radio value={3}>三图</Radio>
                 <Radio value={0}>无图</Radio>
@@ -108,17 +138,19 @@ const Publish = () => {
              {/*listType决定选择文件框的外观样式
              showUploadList控制显示上传列表
                  */}
-          <Upload
+            {imageType>0 && <Upload
              name='image'
              listType="picture-card"
              showUploadList
              action={'http://geek.itheima.net/v1_0/upload'}
              onChange={onChange}
+             maxCount={imageType}
+             fileList={imageList}
            >
                   <div style={{ marginTop: 8 }}>
                   <PlusOutlined />
                     </div>
-                 </Upload>
+                 </Upload>}
             </Form.Item>
 
           {/* 富文本编辑器 */}
