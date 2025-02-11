@@ -56,6 +56,7 @@ const Publish = () => {
      }else{
      createArticleAPI(reqData)
      }
+     //弹窗发布成功
    }
  //上传回调
    const [imageList,setImageList]=useState([]) 
